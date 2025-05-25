@@ -1,169 +1,235 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Milk Cost Calculator</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
-      font-family: sans-serif;
-      padding: 20px;
-      background: #f4f4f4;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f9f8;
+      margin: 0;
+      padding: 1rem;
     }
-    .box {
-      background: white;
-      padding: 15px;
-      border-radius: 10px;
-      max-width: 500px;
+    .container {
+      max-width: 480px;
       margin: auto;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    input {
+    h2, h3 {
+      text-align: center;
+      color: #2e7d32;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 600;
+    }
+    input, select {
       width: 100%;
-      padding: 8px;
-      margin: 8px 0;
+      padding: 0.6rem;
+      margin-top: 0.4rem;
+      border-radius: 8px;
       border: 1px solid #ccc;
-      border-radius: 5px;
     }
     button {
+      margin-top: 1rem;
       width: 100%;
-      padding: 10px;
-      background: #007bff;
+      padding: 0.8rem;
+      background: #4CAF50;
       color: white;
       border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .row input {
+      flex: 1;
+    }
+    .bill, .history {
+      margin-top: 2rem;
+      background: #f0f4f3;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    .bill p {
+      margin: 0.4rem 0;
+    }
+    .month-entry {
+      background: #e8f5e9;
+      padding: 1rem;
+      margin-top: 1rem;
+      border-left: 5px solid #4CAF50;
+      border-radius: 8px;
+    }
+    .delete-btn {
+      background: #e53935;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.6rem;
       border-radius: 5px;
       margin-top: 10px;
-    }
-    .history {
-      margin-top: 20px;
-    }
-    .record {
-      background: #e9f5ff;
-      padding: 10px;
-      margin: 10px 0;
-      border-left: 4px solid #007bff;
-      border-radius: 5px;
+      width: 100%;
     }
     .highlight {
       font-weight: bold;
-      color: green;
-    }
-    .delete-btn {
-      margin-top: 5px;
-      background: red;
+      color: #2e7d32;
+      font-size: 1.1rem;
     }
   </style>
 </head>
 <body>
-  <div class="box">
+  <div class="container">
     <h2>Milk Cost Calculator</h2>
-    <label>Month</label>
+
+    <label for="month">Select Month</label>
     <input type="month" id="month" />
 
-    <label>Cost per liter</label>
-    <input type="number" id="rate" placeholder="e.g., 75" />
+    <label for="costPerLiter">Cost of 1 liter (8 cups)</label>
+    <input type="number" id="costPerLiter" placeholder="Rs per liter" />
 
-    <label>Fixed cups per day</label>
-    <input type="number" id="cups" placeholder="e.g., 6" />
+    <label>Entry Type</label>
+    <select id="entryType" onchange="toggleEntryType()">
+      <option value="fixed">Same cups each day</option>
+      <option value="variable">Different cups on different days</option>
+    </select>
 
-    <label>Fixed number of days</label>
-    <input type="number" id="days" placeholder="e.g., 30" />
+    <div id="fixedEntry">
+      <label for="cupsPerDay">Cups per day</label>
+      <input type="number" id="cupsPerDay" />
 
-    <h4>Additional variable entries (optional)</h4>
-    <div id="variableSection"></div>
-    <button onclick="addVariable()">+ Add Variable Entry</button>
+      <label for="days">Number of days</label>
+      <input type="number" id="days" />
+    </div>
 
-    <button onclick="calculate()">Calculate & Save</button>
+    <div id="variableEntry" style="display: none;">
+      <div id="rowsContainer"></div>
+      <button onclick="addRow()">+ Add Row</button>
+    </div>
+
+    <button onclick="calculateAndSave()">Calculate & Save</button>
+
+    <div class="bill" id="billSummary" style="display:none;"></div>
 
     <div class="history">
       <h3>History</h3>
-      <div id="historyList"></div>
+      <div id="historyContainer"></div>
     </div>
   </div>
 
   <script>
-    function addVariable() {
-      const div = document.createElement("div");
-      div.innerHTML = `
-        <input type="number" placeholder="Variable Cups" class="varCup" />
-        <input type="number" placeholder="Days" class="varDay" />
-      `;
-      document.getElementById("variableSection").appendChild(div);
-    }
-
     function getMonthName(monthStr) {
-      const [year, month] = monthStr.split("-");
-      const date = new Date(year, month - 1);
-      return date.toLocaleString("default", { month: "long", year: "numeric" });
+      const date = new Date(monthStr + '-01');
+      return date.toLocaleString('default', { month: 'long', year: 'numeric' });
     }
 
-    function calculate() {
-      const month = document.getElementById("month").value;
-      const rate = parseFloat(document.getElementById("rate").value);
-      const fixedCups = parseInt(document.getElementById("cups").value) || 0;
-      const fixedDays = parseInt(document.getElementById("days").value) || 0;
+    function toggleEntryType() {
+      const type = document.getElementById('entryType').value;
+      document.getElementById('fixedEntry').style.display = type === 'fixed' ? 'block' : 'none';
+      document.getElementById('variableEntry').style.display = type === 'variable' ? 'block' : 'none';
+    }
 
-      const varCups = document.querySelectorAll(".varCup");
-      const varDays = document.querySelectorAll(".varDay");
+    function addRow() {
+      const container = document.getElementById('rowsContainer');
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `
+        <input type="number" placeholder="Cups" class="cups" />
+        <input type="number" placeholder="Days" class="days" />
+      `;
+      container.appendChild(row);
+    }
 
-      let breakdown = [];
-      let totalCups = fixedCups * fixedDays;
-      if (fixedCups && fixedDays) {
-        breakdown.push(`${fixedCups} cups × ${fixedDays} days = ${fixedCups * fixedDays} cups`);
+    function calculateAndSave() {
+      const month = document.getElementById('month').value;
+      const costPerLiter = parseFloat(document.getElementById('costPerLiter').value);
+      const entryType = document.getElementById('entryType').value;
+      const costPerCup = costPerLiter / 8;
+
+      if (!month || isNaN(costPerLiter)) {
+        alert("Please enter month and cost.");
+        return;
       }
 
-      for (let i = 0; i < varCups.length; i++) {
-        const cups = parseInt(varCups[i].value) || 0;
-        const days = parseInt(varDays[i].value) || 0;
-        if (cups && days) {
-          const subTotal = cups * days;
-          totalCups += subTotal;
-          breakdown.push(`${cups} cups × ${days} days = ${subTotal} cups`);
+      let total = 0;
+      let totalCups = 0;
+      let entries = [];
+      let billText = `<h3>Bill for ${getMonthName(month)}</h3>`;
+      billText += `<p>Cost per Liter: Rs ${costPerLiter.toFixed(2)}</p><hr>`;
+
+      if (entryType === 'fixed') {
+        const cups = parseFloat(document.getElementById('cupsPerDay').value);
+        const days = parseInt(document.getElementById('days').value);
+        if (isNaN(cups) || isNaN(days)) return alert("Enter fixed values");
+        totalCups = cups * days;
+        total = totalCups * costPerCup;
+        billText += `<p>${cups} cups × ${days} days = ${totalCups} cups</p>`;
+        entries.push(`${cups} cups × ${days} days = ${totalCups} cups`);
+      } else {
+        const cupsList = document.querySelectorAll('.cups');
+        const daysList = document.querySelectorAll('.days');
+        for (let i = 0; i < cupsList.length; i++) {
+          const cups = parseFloat(cupsList[i].value);
+          const days = parseInt(daysList[i].value);
+          if (isNaN(cups) || isNaN(days)) continue;
+          const entryCups = cups * days;
+          entries.push(`${cups} cups × ${days} days = ${entryCups} cups`);
+          billText += `<p>${cups} cups × ${days} days = ${entryCups} cups</p>`;
+          totalCups += entryCups;
         }
+        total = totalCups * costPerCup;
       }
 
-      const liters = totalCups / 8;
-      const total = liters * rate;
+      billText += `<hr><p class="highlight">Total Cost: Rs ${total.toFixed(2)}</p>`;
 
       const record = {
         month,
-        name: getMonthName(month),
-        rate,
-        totalCups,
-        liters: liters.toFixed(2),
+        costPerLiter,
+        entryType,
         total: total.toFixed(2),
-        breakdown
+        entries
       };
 
-      let records = JSON.parse(localStorage.getItem("milkRecords") || "[]");
-      records = [record, ...records.filter(r => r.month !== month)];
-      localStorage.setItem("milkRecords", JSON.stringify(records));
+      let data = JSON.parse(localStorage.getItem('milkRecords')) || {};
+      data[month] = record;
+      localStorage.setItem('milkRecords', JSON.stringify(data));
 
+      document.getElementById('billSummary').innerHTML = billText;
+      document.getElementById('billSummary').style.display = 'block';
+
+      showHistory();
+    }
+
+    function deleteRecord(month) {
+      const data = JSON.parse(localStorage.getItem('milkRecords')) || {};
+      delete data[month];
+      localStorage.setItem('milkRecords', JSON.stringify(data));
       showHistory();
     }
 
     function showHistory() {
-      const list = document.getElementById("historyList");
-      list.innerHTML = "";
-      const records = JSON.parse(localStorage.getItem("milkRecords") || "[]");
-
-      for (let record of records) {
-        const div = document.createElement("div");
-        div.className = "record";
+      const container = document.getElementById('historyContainer');
+      container.innerHTML = '';
+      const data = JSON.parse(localStorage.getItem('milkRecords')) || {};
+      Object.keys(data).sort().reverse().forEach(month => {
+        const entry = data[month];
+        const div = document.createElement('div');
+        div.className = 'month-entry';
         div.innerHTML = `
-          <strong>${record.name}</strong><br>
-          ${record.breakdown.join("<br>")}<br><br>
-          <span class="highlight">Total Cost: Rs ${record.total}</span><br>
-          <button class="delete-btn" onclick="deleteRecord('${record.month}')">Delete</button>
+          <strong>${getMonthName(month)}</strong>
+          ${entry.entries.map(e => `<p>${e}</p>`).join('')}
+          <p class="highlight">Total Cost: Rs ${entry.total}</p>
+          <button class="delete-btn" onclick="deleteRecord('${month}')">Delete</button>
         `;
-        list.appendChild(div);
-      }
-    }
-
-    function deleteRecord(month) {
-      let records = JSON.parse(localStorage.getItem("milkRecords") || "[]");
-      records = records.filter(r => r.month !== month);
-      localStorage.setItem("milkRecords", JSON.stringify(records));
-      showHistory();
+        container.appendChild(div);
+      });
     }
 
     window.onload = showHistory;
