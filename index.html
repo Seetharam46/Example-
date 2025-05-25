@@ -75,7 +75,13 @@
       border: none;
       padding: 0.4rem 0.6rem;
       border-radius: 5px;
-      float: right;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .highlight {
+      font-weight: bold;
+      color: #2e7d32;
+      font-size: 1.1rem;
     }
   </style>
 </head>
@@ -154,8 +160,9 @@
 
       let total = 0;
       let totalCups = 0;
+      let entries = [];
       let billText = `<h3>Bill for ${getMonthName(month)}</h3>`;
-      billText += `<p>Cost per Liter: Rs ${costPerLiter.toFixed(2)} (Rs ${costPerCup.toFixed(2)} per cup)</p><hr>`;
+      billText += `<p>Cost per Liter: Rs ${costPerLiter.toFixed(2)}</p><hr>`;
 
       if (entryType === 'fixed') {
         const cups = parseFloat(document.getElementById('cupsPerDay').value);
@@ -163,7 +170,8 @@
         if (isNaN(cups) || isNaN(days)) return alert("Enter fixed values");
         totalCups = cups * days;
         total = totalCups * costPerCup;
-        billText += `<p>${cups} cups/day × ${days} days = ${totalCups} cups</p>`;
+        billText += `<p>${cups} cups × ${days} days = ${totalCups} cups</p>`;
+        entries.push(`${cups} cups × ${days} days = ${totalCups} cups`);
       } else {
         const cupsList = document.querySelectorAll('.cups');
         const daysList = document.querySelectorAll('.days');
@@ -172,34 +180,21 @@
           const days = parseInt(daysList[i].value);
           if (isNaN(cups) || isNaN(days)) continue;
           const entryCups = cups * days;
+          entries.push(`${cups} cups × ${days} days = ${entryCups} cups`);
           billText += `<p>${cups} cups × ${days} days = ${entryCups} cups</p>`;
           totalCups += entryCups;
         }
         total = totalCups * costPerCup;
       }
 
-      const liters = totalCups / 8;
-      billText += `<hr><p><strong>Total Cups:</strong> ${totalCups}</p>`;
-      billText += `<p><strong>Total Milk:</strong> ${liters.toFixed(2)} liters</p>`;
-      billText += `<p><strong>Total Cost:</strong> Rs ${total.toFixed(2)}</p>`;
+      billText += `<hr><p class="highlight">Total Cost: Rs ${total.toFixed(2)}</p>`;
 
       const record = {
         month,
         costPerLiter,
         entryType,
         total: total.toFixed(2),
-        cups: totalCups,
-        ...(entryType === 'fixed'
-          ? {
-              cupsPerDay: parseFloat(document.getElementById('cupsPerDay').value),
-              days: parseInt(document.getElementById('days').value)
-            }
-          : {
-              variableRows: [...document.querySelectorAll('.row')].map(r => ({
-                cups: parseFloat(r.querySelector('.cups').value),
-                days: parseInt(r.querySelector('.days').value)
-              }))
-            })
+        entries
       };
 
       let data = JSON.parse(localStorage.getItem('milkRecords')) || {};
@@ -228,11 +223,10 @@
         const div = document.createElement('div');
         div.className = 'month-entry';
         div.innerHTML = `
-          <strong>${getMonthName(month)}
-            <button class="delete-btn" onclick="deleteRecord('${month}')">Delete</button>
-          </strong>
-          <p>Total Cups: ${entry.cups}</p>
-          <p>Total Cost: Rs ${entry.total}</p>
+          <strong>${getMonthName(month)}</strong>
+          ${entry.entries.map(e => `<p>${e}</p>`).join('')}
+          <p class="highlight">Total Cost: Rs ${entry.total}</p>
+          <button class="delete-btn" onclick="deleteRecord('${month}')">Delete</button>
         `;
         container.appendChild(div);
       });
