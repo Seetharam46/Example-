@@ -4,12 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Milk Cost Calculator</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#4CAF50" />
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: #f2f8f9;
+      background: #f4f9f8;
       margin: 0;
       padding: 1rem;
     }
@@ -23,14 +21,14 @@
     }
     h2, h3 {
       text-align: center;
-      color: #333;
+      color: #2e7d32;
     }
     label {
       display: block;
       margin-top: 1rem;
       font-weight: 600;
     }
-    input {
+    input, select {
       width: 100%;
       padding: 0.6rem;
       margin-top: 0.4rem;
@@ -38,7 +36,7 @@
       border: 1px solid #ccc;
     }
     button {
-      margin-top: 1.5rem;
+      margin-top: 1rem;
       width: 100%;
       padding: 0.8rem;
       background: #4CAF50;
@@ -48,19 +46,28 @@
       font-size: 1rem;
       cursor: pointer;
     }
-    .results, .history {
+    .row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .row input {
+      flex: 1;
+    }
+    .bill, .history {
       margin-top: 2rem;
+      background: #f0f4f3;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    .bill p {
+      margin: 0.4rem 0;
     }
     .month-entry {
       background: #e8f5e9;
       padding: 1rem;
-      margin-bottom: 1rem;
+      margin-top: 1rem;
       border-left: 5px solid #4CAF50;
       border-radius: 8px;
-    }
-    .month-entry h4 {
-      margin: 0 0 0.5rem 0;
-      color: #2e7d32;
     }
     .delete-btn {
       background: #e53935;
@@ -68,7 +75,6 @@
       border: none;
       padding: 0.4rem 0.6rem;
       border-radius: 5px;
-      cursor: pointer;
       float: right;
     }
   </style>
@@ -81,22 +87,33 @@
     <input type="month" id="month" />
 
     <label for="costPerLiter">Cost of 1 liter (8 cups)</label>
-    <input type="number" id="costPerLiter" placeholder="Enter cost in Rs" />
+    <input type="number" id="costPerLiter" placeholder="Rs per liter" />
 
-    <label for="cupsPerDay">Cups bought per day</label>
-    <input type="number" id="cupsPerDay" placeholder="Enter number of cups" />
+    <label>Entry Type</label>
+    <select id="entryType" onchange="toggleEntryType()">
+      <option value="fixed">Same cups each day</option>
+      <option value="variable">Different cups on different days</option>
+    </select>
 
-    <label for="days">Number of days</label>
-    <input type="number" id="days" placeholder="Enter days" />
+    <div id="fixedEntry">
+      <label for="cupsPerDay">Cups per day</label>
+      <input type="number" id="cupsPerDay" />
+
+      <label for="days">Number of days</label>
+      <input type="number" id="days" />
+    </div>
+
+    <div id="variableEntry" style="display: none;">
+      <div id="rowsContainer"></div>
+      <button onclick="addRow()">+ Add Row</button>
+    </div>
 
     <button onclick="calculateAndSave()">Calculate & Save</button>
 
-    <div class="results">
-      <h3>Total Cost: <span id="total"></span></h3>
-    </div>
+    <div class="bill" id="billSummary" style="display:none;"></div>
 
     <div class="history">
-      <h3>Monthly History</h3>
+      <h3>History</h3>
       <div id="historyContainer"></div>
     </div>
   </div>
@@ -107,32 +124,91 @@
       return date.toLocaleString('default', { month: 'long', year: 'numeric' });
     }
 
+    function toggleEntryType() {
+      const type = document.getElementById('entryType').value;
+      document.getElementById('fixedEntry').style.display = type === 'fixed' ? 'block' : 'none';
+      document.getElementById('variableEntry').style.display = type === 'variable' ? 'block' : 'none';
+    }
+
+    function addRow() {
+      const container = document.getElementById('rowsContainer');
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `
+        <input type="number" placeholder="Cups" class="cups" />
+        <input type="number" placeholder="Days" class="days" />
+      `;
+      container.appendChild(row);
+    }
+
     function calculateAndSave() {
       const month = document.getElementById('month').value;
       const costPerLiter = parseFloat(document.getElementById('costPerLiter').value);
-      const cupsPerDay = parseFloat(document.getElementById('cupsPerDay').value);
-      const days = parseInt(document.getElementById('days').value);
+      const entryType = document.getElementById('entryType').value;
+      const costPerCup = costPerLiter / 8;
 
-      if (!month || isNaN(costPerLiter) || isNaN(cupsPerDay) || isNaN(days)) {
-        alert("Please fill all the fields correctly.");
+      if (!month || isNaN(costPerLiter)) {
+        alert("Please enter month and cost.");
         return;
       }
 
-      const costPerCup = costPerLiter / 8;
-      const total = costPerCup * cupsPerDay * days;
-      document.getElementById('total').textContent = `Rs ${total.toFixed(2)}`;
+      let total = 0;
+      let totalCups = 0;
+      let billText = `<h3>Bill for ${getMonthName(month)}</h3>`;
+      billText += `<p>Cost per Liter: Rs ${costPerLiter.toFixed(2)} (Rs ${costPerCup.toFixed(2)} per cup)</p><hr>`;
+
+      if (entryType === 'fixed') {
+        const cups = parseFloat(document.getElementById('cupsPerDay').value);
+        const days = parseInt(document.getElementById('days').value);
+        if (isNaN(cups) || isNaN(days)) return alert("Enter fixed values");
+        totalCups = cups * days;
+        total = totalCups * costPerCup;
+        billText += `<p>${cups} cups/day × ${days} days = ${totalCups} cups</p>`;
+      } else {
+        const cupsList = document.querySelectorAll('.cups');
+        const daysList = document.querySelectorAll('.days');
+        for (let i = 0; i < cupsList.length; i++) {
+          const cups = parseFloat(cupsList[i].value);
+          const days = parseInt(daysList[i].value);
+          if (isNaN(cups) || isNaN(days)) continue;
+          const entryCups = cups * days;
+          billText += `<p>${cups} cups × ${days} days = ${entryCups} cups</p>`;
+          totalCups += entryCups;
+        }
+        total = totalCups * costPerCup;
+      }
+
+      const liters = totalCups / 8;
+      billText += `<hr><p><strong>Total Cups:</strong> ${totalCups}</p>`;
+      billText += `<p><strong>Total Milk:</strong> ${liters.toFixed(2)} liters</p>`;
+      billText += `<p><strong>Total Cost:</strong> Rs ${total.toFixed(2)}</p>`;
 
       const record = {
         month,
         costPerLiter,
-        cupsPerDay,
-        days,
-        total: total.toFixed(2)
+        entryType,
+        total: total.toFixed(2),
+        cups: totalCups,
+        ...(entryType === 'fixed'
+          ? {
+              cupsPerDay: parseFloat(document.getElementById('cupsPerDay').value),
+              days: parseInt(document.getElementById('days').value)
+            }
+          : {
+              variableRows: [...document.querySelectorAll('.row')].map(r => ({
+                cups: parseFloat(r.querySelector('.cups').value),
+                days: parseInt(r.querySelector('.days').value)
+              }))
+            })
       };
 
       let data = JSON.parse(localStorage.getItem('milkRecords')) || {};
       data[month] = record;
       localStorage.setItem('milkRecords', JSON.stringify(data));
+
+      document.getElementById('billSummary').innerHTML = billText;
+      document.getElementById('billSummary').style.display = 'block';
+
       showHistory();
     }
 
@@ -144,23 +220,21 @@
     }
 
     function showHistory() {
-      const historyContainer = document.getElementById('historyContainer');
-      historyContainer.innerHTML = '';
+      const container = document.getElementById('historyContainer');
+      container.innerHTML = '';
       const data = JSON.parse(localStorage.getItem('milkRecords')) || {};
       Object.keys(data).forEach(month => {
         const entry = data[month];
         const div = document.createElement('div');
         div.className = 'month-entry';
         div.innerHTML = `
-          <h4>${getMonthName(month)}
+          <strong>${getMonthName(month)}
             <button class="delete-btn" onclick="deleteRecord('${month}')">Delete</button>
-          </h4>
-          <p>Cost per Liter: Rs ${entry.costPerLiter}</p>
-          <p>Cups per Day: ${entry.cupsPerDay}</p>
-          <p>Days: ${entry.days}</p>
-          <p><strong>Total: Rs ${entry.total}</strong></p>
+          </strong>
+          <p>Total Cups: ${entry.cups}</p>
+          <p>Total Cost: Rs ${entry.total}</p>
         `;
-        historyContainer.appendChild(div);
+        container.appendChild(div);
       });
     }
 
